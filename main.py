@@ -268,6 +268,13 @@ class Musify(App):
         elif not self.tracks:
             self.scan()
 
+    def on_pause(self):
+        self.save_library()
+        return True
+
+    def on_resume(self):
+        pass
+
     def on_stop(self):
         self.halt()
         self.save_library()
@@ -541,15 +548,32 @@ class Musify(App):
         self.apply_volume()
 
     def youtube(self):
-        q = self.ui.ids.search.text.strip()
+        search = self.ui.ids.search
+        q = search.text.strip()
         if not q and 0 <= self.index < len(self.tracks):
             t = self.tracks[self.index]
             q = f"{t['title']} {t['artist']}"
-        if q:
-            webbrowser.open("https://www.youtube.com/results?search_query=" + quote(q))
-        else:
+        if not q:
             self.toast("Type something to search")
+            return
+        search.focus = False
+        url = "https://www.youtube.com/results?search_query=" + quote(q)
+        Clock.schedule_once(lambda dt: self.open_url(url), 0)
 
+    def open_url(self, url):
+        if platform == "android":
+            try:
+                from jnius import autoclass
+                Intent = autoclass("android.content.Intent")
+                Uri = autoclass("android.net.Uri")
+                PythonActivity = autoclass("org.kivy.android.PythonActivity")
+                intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                PythonActivity.mActivity.startActivity(intent)
+                return
+            except Exception:
+                pass
+        if not webbrowser.open(url):
+            self.toast("Couldn't open a browser")
 
 if __name__ == "__main__":
     Musify().run()
