@@ -1,12 +1,18 @@
 name: Build Musify APK
 on:
   workflow_dispatch:
+    inputs:
+      from_run:
+        description: "Run id whose APK artifact should be published as a release"
+        required: false
+        default: ""
   push:
     branches: [main]
   pull_request:
     branches: [main]
 jobs:
   build:
+    if: ${{ github.event.inputs.from_run == '' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -29,3 +35,19 @@ jobs:
         with:
           name: Musify-apk
           path: bin/*.apk
+  release:
+    if: ${{ github.event.inputs.from_run != '' }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Musify-apk
+          run-id: ${{ github.event.inputs.from_run }}
+          github-token: ${{ github.token }}
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "apk-${{ github.event.inputs.from_run }}" ./*.apk --repo "${{ github.repository }}" --title "Musify APK ${{ github.event.inputs.from_run }}" --notes "Built from run ${{ github.event.inputs.from_run }}"
